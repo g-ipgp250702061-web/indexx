@@ -163,11 +163,18 @@
       flex: 1;
     }
 
+    .btn-discard {
+      background: #D9534F;
+      box-shadow: 0 5px 0px #A82B2B;
+      width: 100%;
+      margin-top: 10px;
+    }
+
     .btn-save {
       background: #609966;
       box-shadow: 0 5px 0px #3B6640;
       width: 100%;
-      margin-top: 12px;
+      margin-top: 10px;
     }
 
     button:disabled {
@@ -210,11 +217,13 @@
       margin-top: 12px;
       text-align: center;
       font-size: 1.1em;
+      word-break: break-word;
     }
 
     .status-info { background: #EFE3C8; color: var(--dark-brown); border: 2px dashed var(--wood-brown); }
     .status-recording { background: #FAD4D4; color: #A83232; border: 2px solid #E05D5D; }
     .status-success { background: #E1EEDD; color: #2C5E3B; border: 2px solid #609966; }
+    .status-error { background: #FFD2D2; color: #D8000C; border: 2px solid #D8000C; }
 
     /* KAD RAKAMAN RAKAN (SEPERTI NOTA LEKAT/POST-IT) */
     .audio-card {
@@ -225,6 +234,7 @@
       margin-bottom: 15px;
       box-shadow: 0 6px 0px var(--card-brown);
       animation: popNote 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
     }
 
     @keyframes popNote {
@@ -232,10 +242,26 @@
       100% { transform: scale(1) rotate(0deg); opacity: 1; }
     }
 
+    .audio-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
     .audio-card h4 {
       margin: 0;
       color: var(--dark-brown);
       font-size: 1.5em;
+    }
+
+    .btn-delete-card {
+      background: #E05D5D;
+      border: 2px solid var(--dark-brown);
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 0.8em;
+      box-shadow: 0 3px 0px #A83232;
+      cursor: pointer;
     }
 
     .reaction-bar {
@@ -321,6 +347,8 @@
       <button id="stopBtn" class="btn-stop" disabled>⏹️ HENTI</button>
     </div>
 
+    <!-- BUTANG DISCARD (MEMBUANG RAKAMAN SEMASA) -->
+    <button id="discardBtn" class="btn-discard" style="display: none;">🗑️ BUANG / RAKAM SEMULA</button>
     <button id="saveBtn" class="btn-save" disabled>💾 SIMPAN PANTUN</button>
 
     <div id="statusText" class="status-box status-info">Tekan '🔴 RAKAM' untuk mula!</div>
@@ -343,10 +371,13 @@
   let audioChunks = [];
   let audioBlob = null;
   let audioUrl = '';
+  let audioStream = null;
+  let audioCtx = null;
 
   const startBtn = document.getElementById('startBtn');
   const stopBtn = document.getElementById('stopBtn');
   const saveBtn = document.getElementById('saveBtn');
+  const discardBtn = document.getElementById('discardBtn');
   const statusText = document.getElementById('statusText');
   const audioPreview = document.getElementById('audioPreview');
   const pantunList = document.getElementById('pantunList');
@@ -355,18 +386,27 @@
 
   // Kesan Bunyi Soft Pop
   function playSoftPop() {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(400, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.08);
-    gain.gain.setValueAtTime(0.2, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.08);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.08);
+    try {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.08);
+    } catch (e) {
+      console.log("SFX Error: ", e);
+    }
   }
 
   function setStatus(text, className) {
@@ -374,19 +414,48 @@
     statusText.className = "status-box " + className;
   }
 
+  // Reset Studio Rakaman
+  function resetStudio() {
+    audioChunks = [];
+    audioBlob = null;
+    audioUrl = '';
+    audioPreview.src = '';
+    audioPreview.style.display = 'none';
+    saveBtn.disabled = true;
+    discardBtn.style.display = 'none';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    waveContainer.style.display = "none";
+    mascot.innerText = "🦉";
+  }
+
   // Mula Rakam
   startBtn.addEventListener('click', async () => {
     playSoftPop();
     setStatus("Membuka mikrofon...", "status-info");
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus("⚠️ Pelayar tidak membenarkan mikrofon di lokasi ini (Perlu HTTPS / Localhost).", "status-error");
+      return;
+    }
     
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      let mimeType = 'audio/webm';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = '';
+      }
+
+      mediaRecorder = mimeType ? new MediaRecorder(audioStream, { mimeType }) : new MediaRecorder(audioStream);
       audioChunks = [];
 
-      mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      };
+
       mediaRecorder.onstop = () => {
-        audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+        audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/wav' });
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
@@ -394,20 +463,30 @@
           audioPreview.src = audioUrl;
           audioPreview.style.display = 'block';
           saveBtn.disabled = false;
+          discardBtn.style.display = 'block';
         };
+
+        if (audioStream) {
+          audioStream.getTracks().forEach(track => track.stop());
+        }
       };
 
       mediaRecorder.start();
       
       waveContainer.style.display = "flex";
       mascot.innerText = "🎙️";
+      discardBtn.style.display = 'none';
 
       setStatus("🎙️ Sedang merakam... Sila baca pantun!", "status-recording");
       startBtn.disabled = true;
       stopBtn.disabled = false;
     } catch (err) {
       console.error(err);
-      setStatus("❌ Akses mikrofon disekat pelayar!", "status-recording");
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setStatus("❌ Chrome telah MENYEKAT mikrofon. Sila tekan ikon KUNCI (🔒) pada URL dan ubah Mikrofon kepada 'Allow'.", "status-error");
+      } else {
+        setStatus("❌ Ralat Mikrofon: " + err.message, "status-error");
+      }
     }
   });
 
@@ -420,9 +499,18 @@
       waveContainer.style.display = "none";
       mascot.innerText = "🦉";
 
-      setStatus("✅ Rakaman selesai! Sila tekan SIMPAN.", "status-success");
+      setStatus("✅ Rakaman selesai! Boleh dengar, simpan atau buang.", "status-success");
       startBtn.disabled = false;
       stopBtn.disabled = true;
+    }
+  });
+
+  // Buang / Rakam Semula Rakaman
+  discardBtn.addEventListener('click', () => {
+    playSoftPop();
+    if (confirm("Adakah anda pasti mahu membuang rakaman ini dan merakam semula?")) {
+      resetStudio();
+      setStatus("Rakaman dibuang. Tekan '🔴 RAKAM' untuk mula semula!", "status-info");
     }
   });
 
@@ -451,11 +539,9 @@
 
     document.getElementById('studentName').value = '';
     document.getElementById('pantunTitle').value = '';
-    audioPreview.style.display = 'none';
-    saveBtn.disabled = true;
+    resetStudio();
     setStatus("🎉 Tahniah! Pantun berjaya disimpan!", "status-success");
 
-    // Konfeti Lembut
     confetti({
       particleCount: 80,
       spread: 60,
@@ -479,7 +565,10 @@
       const card = document.createElement('div');
       card.className = 'audio-card';
       card.innerHTML = `
-        <h4>📌 ${item.title}</h4>
+        <div class="audio-card-header">
+          <h4>📌 ${item.title}</h4>
+          <button class="btn-delete-card" onclick="deletePantun(${item.id})">🗑️ Padam</button>
+        </div>
         <p style="margin: 2px 0 8px 0; color: #6E5341;">Oleh: <b>${item.name}</b></p>
         <audio controls src="${item.audio}" style="width:100%;"></audio>
         <div class="reaction-bar">
@@ -492,6 +581,17 @@
       pantunList.appendChild(card);
     });
   }
+
+  // Padam Kad Dari Galeri
+  window.deletePantun = function(id) {
+    playSoftPop();
+    if (confirm("Adakah anda pasti mahu memadamkan pantun ini dari galeri?")) {
+      let list = JSON.parse(localStorage.getItem('pantunItemsSoftBrown')) || [];
+      list = list.filter(item => item.id !== id);
+      localStorage.setItem('pantunItemsSoftBrown', JSON.stringify(list));
+      renderList();
+    }
+  };
 
   window.addReaction = function(id, type) {
     playSoftPop();
