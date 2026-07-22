@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📜 Sudut Pantun Kraf Cerdas 📜</title>
+  <link href="https://fonts.googleapis.com/css2?family=Chicle&family=Patrick+Hand&display=swap" rel="stylesheet">
+  <!-- Library Konfeti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+  
+  <style>
+    :root {
+      --bg-brown: #F5EBE0;
+      --card-brown: #E3CAA5;
+      --wood-brown: #AD8B73;
+      --dark-brown: #5C3D2E;
+      --accent-orange: #FF9F45;
+      --cream: #FFFBEB;
+    }
+
+    body {
+      font-family: 'Patrick Hand', cursive;
+      background-color: var(--bg-brown);
+      /* Pola titik lembut pada latar coklat */
+      background-image: radial-gradient(#D5C5B5 2px, transparent 2px);
+      background-size: 20px 20px;
+      margin: 0;
+      padding: 15px;
+      color: var(--dark-brown);
+      font-size: 18px;
+    }
+
+    h1, h2, h3 {
+      font-family: 'Chicle', cursive;
+      letter-spacing: 1px;
+      font-weight: normal;
+    }
+
+    /* BANNER ATAS BERGAYA KERTAS KRAF */
+    .header-banner {
+      text-align: center;
+      background: var(--wood-brown);
+      color: var(--cream);
+      padding: 10px 20px;
+      border-radius: 20px;
+      border: 4px dashed var(--dark-brown);
+      box-shadow: 0 8px 0px #8B5E3C;
+      margin-bottom: 25px;
+      position: relative;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(-1deg); }
+      50% { transform: translateY(-6px) rotate(1deg); }
+    }
+
+    .header-banner h1 {
+      margin: 0;
+      font-size: 2.8em;
+      text-shadow: 2px 2px 0px var(--dark-brown);
+    }
+
+    /* LAYOUT LANDSCAPE (SEBELAH KE SEBELAH) */
+    .landscape-container {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+      align-items: flex-start;
+    }
+
+    /* KAD RAKAMAN (KIRI) */
+    .recorder-card {
+      flex: 1;
+      background: var(--cream);
+      border: 4px solid var(--wood-brown);
+      border-radius: 25px;
+      padding: 20px;
+      box-shadow: 0 8px 0px var(--wood-brown);
+      position: sticky;
+      top: 10px;
+      text-align: center;
+    }
+
+    /* KAD SENARAI (KANAN) */
+    .list-section {
+      flex: 1.2;
+      background: var(--cream);
+      border: 4px solid var(--wood-brown);
+      border-radius: 25px;
+      padding: 20px;
+      box-shadow: 0 8px 0px var(--wood-brown);
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    label {
+      font-size: 1.2em;
+      color: var(--dark-brown);
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border: 3px solid var(--card-brown);
+      background: #FFF;
+      border-radius: 15px;
+      font-size: 1.1em;
+      font-family: 'Patrick Hand', cursive;
+      box-sizing: border-box;
+      outline: none;
+      color: var(--dark-brown);
+      transition: 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent-orange);
+      background: #FFFDF9;
+    }
+
+    /* BUTANG BERGAYA PELEKAT 3D */
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    button {
+      font-family: 'Chicle', cursive;
+      font-size: 1.4em;
+      padding: 8px 15px;
+      border: 3px solid var(--dark-brown);
+      border-radius: 18px;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      color: #FFF;
+      letter-spacing: 1px;
+    }
+
+    button:active {
+      transform: translateY(4px) !important;
+      box-shadow: none !important;
+    }
+
+    .btn-record {
+      background: #E05D5D;
+      box-shadow: 0 5px 0px #A83232;
+      flex: 1;
+    }
+
+    .btn-stop {
+      background: #8C8C8C;
+      box-shadow: 0 5px 0px #595959;
+      flex: 1;
+    }
+
+    .btn-save {
+      background: #609966;
+      box-shadow: 0 5px 0px #3B6640;
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    /* ANIMASI GELOMBANG MIKROFON (SOFT WAVE) */
+    .wave-container {
+      display: none;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      height: 35px;
+      margin-top: 10px;
+    }
+
+    .wave-bar {
+      width: 8px;
+      height: 100%;
+      background: var(--accent-orange);
+      border-radius: 10px;
+      animation: wave 0.8s infinite ease-in-out alternate;
+    }
+
+    .wave-bar:nth-child(2) { animation-delay: 0.15s; background: var(--wood-brown); }
+    .wave-bar:nth-child(3) { animation-delay: 0.3s; background: #609966; }
+    .wave-bar:nth-child(4) { animation-delay: 0.45s; background: #E05D5D; }
+
+    @keyframes wave {
+      0% { height: 8px; }
+      100% { height: 32px; }
+    }
+
+    .status-box {
+      padding: 10px;
+      border-radius: 15px;
+      margin-top: 12px;
+      text-align: center;
+      font-size: 1.1em;
+    }
+
+    .status-info { background: #EFE3C8; color: var(--dark-brown); border: 2px dashed var(--wood-brown); }
+    .status-recording { background: #FAD4D4; color: #A83232; border: 2px solid #E05D5D; }
+    .status-success { background: #E1EEDD; color: #2C5E3B; border: 2px solid #609966; }
+
+    /* KAD RAKAMAN RAKAN (SEPERTI NOTA LEKAT/POST-IT) */
+    .audio-card {
+      background: #FFF8EA;
+      border: 3px solid var(--card-brown);
+      border-radius: 20px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 6px 0px var(--card-brown);
+      animation: popNote 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popNote {
+      0% { transform: scale(0.6) rotate(-3deg); opacity: 0; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    .audio-card h4 {
+      margin: 0;
+      color: var(--dark-brown);
+      font-size: 1.5em;
+    }
+
+    .reaction-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .reaction-btn {
+      background: #FFF;
+      border: 2px solid var(--wood-brown);
+      border-radius: 15px;
+      padding: 4px 10px;
+      font-size: 1em;
+      cursor: pointer;
+      box-shadow: 0 3px 0px var(--wood-brown);
+      color: var(--dark-brown);
+      font-family: 'Patrick Hand', cursive;
+      transition: 0.15s;
+    }
+
+    .reaction-btn:hover {
+      transform: scale(1.1) rotate(2deg);
+      background: #FFF5E4;
+    }
+
+    .mascot {
+      font-size: 55px;
+      display: inline-block;
+      transition: transform 0.3s;
+    }
+
+    .mascot-bounce {
+      animation: softBounce 1.2s infinite alternate;
+    }
+
+    @keyframes softBounce {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-10px); }
+    }
+
+    @media (max-width: 768px) {
+      .landscape-container { flex-direction: column; }
+      .recorder-card { position: static; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header-banner">
+  <h1>📜 🎙️ Pondok Pantun Cilik 📜</h1>
+  <p style="margin: 0; font-size: 1.2em;">Rakam pantun comel anda & berikan pelekat untuk karya rakan!</p>
+</div>
+
+<div class="landscape-container">
+
+  <!-- STUDIO RAKAMAN (KIRI) -->
+  <div class="recorder-card">
+    <div id="mascot" class="mascot mascot-bounce">🦉</div>
+    <h2 style="color: var(--dark-brown); margin: 0 0 10px 0; font-size: 2em;">Studio Pantun</h2>
+    
+    <div class="form-group">
+      <label for="studentName">👤 Nama Murid:</label>
+      <input type="text" id="studentName" placeholder="Contoh: Zara (Tahun 3 Cerdas)">
+    </div>
+
+    <div class="form-group">
+      <label for="pantunTitle">📖 Tajuk Pantun:</label>
+      <input type="text" id="pantunTitle" placeholder="Contoh: Pantun Budi Bahasa">
+    </div>
+
+    <!-- ANIMASI WAVE -->
+    <div id="waveContainer" class="wave-container">
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+    </div>
+
+    <div class="btn-group">
+      <button id="startBtn" class="btn-record">🔴 RAKAM</button>
+      <button id="stopBtn" class="btn-stop" disabled>⏹️ HENTI</button>
+    </div>
+
+    <button id="saveBtn" class="btn-save" disabled>💾 SIMPAN PANTUN</button>
+
+    <div id="statusText" class="status-box status-info">Tekan '🔴 RAKAM' untuk mula!</div>
+    
+    <audio id="audioPreview" controls style="display:none; width: 100%; margin-top: 15px;"></audio>
+  </div>
+
+  <!-- GALERI PANTUN (KANAN) -->
+  <div class="list-section">
+    <h2 style="color: var(--dark-brown); margin-top: 0; text-align: center; font-size: 2.2em;">🌾 Koleksi Pantun Rakan</h2>
+    <div id="pantunList">
+      <!-- Kad audio akan dipaparkan di sini -->
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let mediaRecorder;
+  let audioChunks = [];
+  let audioBlob = null;
+  let audioUrl = '';
+
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const statusText = document.getElementById('statusText');
+  const audioPreview = document.getElementById('audioPreview');
+  const pantunList = document.getElementById('pantunList');
+  const waveContainer = document.getElementById('waveContainer');
+  const mascot = document.getElementById('mascot');
+
+  // Kesan Bunyi Soft Pop
+  function playSoftPop() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.08);
+  }
+
+  function setStatus(text, className) {
+    statusText.innerText = text;
+    statusText.className = "status-box " + className;
+  }
+
+  // Mula Rakam
+  startBtn.addEventListener('click', async () => {
+    playSoftPop();
+    setStatus("Membuka mikrofon...", "status-info");
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          audioUrl = reader.result;
+          audioPreview.src = audioUrl;
+          audioPreview.style.display = 'block';
+          saveBtn.disabled = false;
+        };
+      };
+
+      mediaRecorder.start();
+      
+      waveContainer.style.display = "flex";
+      mascot.innerText = "🎙️";
+
+      setStatus("🎙️ Sedang merakam... Sila baca pantun!", "status-recording");
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    } catch (err) {
+      console.error(err);
+      setStatus("❌ Akses mikrofon disekat pelayar!", "status-recording");
+    }
+  });
+
+  // Henti Rakam
+  stopBtn.addEventListener('click', () => {
+    playSoftPop();
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      
+      waveContainer.style.display = "none";
+      mascot.innerText = "🦉";
+
+      setStatus("✅ Rakaman selesai! Sila tekan SIMPAN.", "status-success");
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+  });
+
+  // Simpan Pantun + Hujan Konfeti
+  saveBtn.addEventListener('click', () => {
+    playSoftPop();
+    const name = document.getElementById('studentName').value.trim();
+    const title = document.getElementById('pantunTitle').value.trim();
+
+    if (!name || !title) {
+      alert("Sila isi Nama dan Tajuk Pantun dahulu ya! 😊");
+      return;
+    }
+
+    const newItem = {
+      id: Date.now(),
+      name: name,
+      title: title,
+      audio: audioUrl,
+      reactions: { love: 0, star: 0, clap: 0, smile: 0 }
+    };
+
+    let list = JSON.parse(localStorage.getItem('pantunItemsSoftBrown')) || [];
+    list.unshift(newItem);
+    localStorage.setItem('pantunItemsSoftBrown', JSON.stringify(list));
+
+    document.getElementById('studentName').value = '';
+    document.getElementById('pantunTitle').value = '';
+    audioPreview.style.display = 'none';
+    saveBtn.disabled = true;
+    setStatus("🎉 Tahniah! Pantun berjaya disimpan!", "status-success");
+
+    // Konfeti Lembut
+    confetti({
+      particleCount: 80,
+      spread: 60,
+      origin: { y: 0.6 }
+    });
+
+    renderList();
+  });
+
+  // Papar Senarai
+  function renderList() {
+    pantunList.innerHTML = '';
+    let list = JSON.parse(localStorage.getItem('pantunItemsSoftBrown')) || [];
+
+    if (list.length === 0) {
+      pantunList.innerHTML = '<p style="text-align:center; color: #8C7A6B;">Belum ada rakaman. Mari jadi yang pertama! 🌾</p>';
+      return;
+    }
+
+    list.forEach((item) => {
+      const card = document.createElement('div');
+      card.className = 'audio-card';
+      card.innerHTML = `
+        <h4>📌 ${item.title}</h4>
+        <p style="margin: 2px 0 8px 0; color: #6E5341;">Oleh: <b>${item.name}</b></p>
+        <audio controls src="${item.audio}" style="width:100%;"></audio>
+        <div class="reaction-bar">
+          <button class="reaction-btn" onclick="addReaction(${item.id}, 'love')">❤️ Sayang (${item.reactions.love || 0})</button>
+          <button class="reaction-btn" onclick="addReaction(${item.id}, 'star')">⭐ Bintang (${item.reactions.star || 0})</button>
+          <button class="reaction-btn" onclick="addReaction(${item.id}, 'clap')">👏 Bagus (${item.reactions.clap || 0})</button>
+          <button class="reaction-btn" onclick="addReaction(${item.id}, 'smile')">😊 Comel (${item.reactions.smile || 0})</button>
+        </div>
+      `;
+      pantunList.appendChild(card);
+    });
+  }
+
+  window.addReaction = function(id, type) {
+    playSoftPop();
+    let list = JSON.parse(localStorage.getItem('pantunItemsSoftBrown')) || [];
+    const index = list.findIndex(item => item.id === id);
+    if (index !== -1) {
+      list[index].reactions[type] = (list[index].reactions[type] || 0) + 1;
+      localStorage.setItem('pantunItemsSoftBrown', JSON.stringify(list));
+      renderList();
+    }
+  };
+
+  renderList();
+</script>
+
+</body>
+</html>
